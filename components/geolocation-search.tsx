@@ -38,6 +38,7 @@ export function GeolocationSearch() {
 
   const handleUseMyLocation = () => {
     if (latitude && longitude) {
+      console.log('local',latitude, longitude)
       // Converter coordenadas para endereço usando API de geocodificação reversa
       // Por enquanto, apenas mostrar as coordenadas
       setLocation(`Localização atual (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`)

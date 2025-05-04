@@ -52,6 +52,6 @@ export const useGeolocation = () => {
 
     navigator.geolocation.getCurrentPosition(success, error, options)
   }, [])
-
+  console.log('state',state)
   return state
 }
