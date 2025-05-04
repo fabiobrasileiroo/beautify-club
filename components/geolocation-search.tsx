@@ -17,7 +17,6 @@ export function GeolocationSearch() {
   const [isSearching, setIsSearching] = useState(false)
   const { latitude, longitude, loading, error } = useGeolocation()
 
-  // Navega para /salons com todos os params
   const handleSearch = () => {
     setIsSearching(true)
     const params = new URLSearchParams()
@@ -31,7 +30,6 @@ export function GeolocationSearch() {
     setIsSearching(false)
   }
 
-  // Converte coordenadas em endereço via Nominatim
   const handleUseMyLocation = async () => {
     if (!latitude || !longitude) return
 
@@ -39,15 +37,10 @@ export function GeolocationSearch() {
     try {
       const res = await fetch(
         `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
-        {
-          headers: {
-            "User-Agent": "MeuApp/1.0 (meuemail@dominio.com)"
-          }
-        }
+        { headers: { "User-Agent": "MeuApp/1.0 (meuemail@dominio.com)" } }
       )
       if (!res.ok) throw new Error("Falha no geocoding")
       const data = await res.json()
-      // Monta algo como "Bairro, Cidade – Estado"
       const addr = data.address
       const place = [
         addr.neighbourhood || addr.suburb,
@@ -67,7 +60,6 @@ export function GeolocationSearch() {
   return (
     <div className="bg-secondary rounded-lg p-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Busca por nome */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
           <Input
@@ -78,7 +70,6 @@ export function GeolocationSearch() {
           />
         </div>
 
-        {/* Campo de localização / “usar minha localização” */}
         <div className="relative">
           <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
           <Input
@@ -90,11 +81,11 @@ export function GeolocationSearch() {
           <Button
             variant="ghost"
             size="sm"
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-xs"
+            className="mt-2 md:mt-0 md:absolute md:right-2 md:top-1/2 md:-translate-y-1/2 text-xs"
             onClick={handleUseMyLocation}
             disabled={loading || !!error || isSearching}
           >
-            {loading || isSearching ? (
+            {(loading || isSearching) ? (
               <>
                 <Loader2 className="h-3 w-3 mr-1 animate-spin" />
                 Carregando...
@@ -105,7 +96,6 @@ export function GeolocationSearch() {
           </Button>
         </div>
 
-        {/* Botão de buscar */}
         <Button
           variant="accent"
           className="text-white"

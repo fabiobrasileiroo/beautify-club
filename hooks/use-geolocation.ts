@@ -29,7 +29,6 @@ export const useGeolocation = (): GeolocationState => {
       return
     }
 
-    // Opcional: detecta se já negaram a permissão
     navigator.permissions
       .query({ name: "geolocation" })
       .then((perm) => {
@@ -70,9 +69,9 @@ export const useGeolocation = (): GeolocationState => {
     }
 
     const options: PositionOptions = {
-      enableHighAccuracy: false, // false para fallback por IP/Wi-Fi em desktop
-      timeout:       20000,      // 20s
-      maximumAge:    0,
+      enableHighAccuracy: false,
+      timeout: 20000,
+      maximumAge: 0,
     }
 
     navigator.geolocation.getCurrentPosition(success, fail, options)
