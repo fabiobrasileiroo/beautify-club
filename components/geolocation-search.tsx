@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { MapPin, Search, Loader2 } from "lucide-react"
-import { useGeolocation } from "@/hooks/useGeolocation"
+import { useGeolocation } from "@/hooks/use-geolocation"
 
 export function GeolocationSearch() {
   const router = useRouter()
