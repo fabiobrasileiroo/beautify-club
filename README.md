@@ -31,7 +31,7 @@ O Beautify Club é uma plataforma que conecta usuários a estabelecimentos de be
    ```bash
    git clone https://github.com/fabiobrasileiroo/beautify-club.git
    cd beautify-club
-````
+  ```
 
 2. **Instale as dependências**
 
