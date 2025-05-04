@@ -18,6 +18,7 @@ export function GeolocationSearch() {
   const handleSearch = () => {
     setIsSearching(true)
 
+    console.log('aqui',latitude, longitude)
     // Construir parâmetros de busca
     const params = new URLSearchParams()
     if (searchTerm) {
