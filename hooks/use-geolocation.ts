@@ -8,6 +8,7 @@ export interface GeolocationState {
   longitude: number | null
   error: string | null
   loading: boolean
+  source: 'gps' | 'ip' | null
 }
 
 export const useGeolocation = (): GeolocationState => {
@@ -16,32 +17,23 @@ export const useGeolocation = (): GeolocationState => {
     longitude: null,
     error: null,
     loading: true,
+    source: null,
   })
 
   useEffect(() => {
-    if (typeof window === "undefined" || !navigator.geolocation) {
-      setState({
-        latitude: null,
-        longitude: null,
-        error: "Geolocalização não é suportada pelo navegador",
-        loading: false,
-      })
+    if (typeof window === "undefined") {
+      setState({ latitude: null, longitude: null, error: "Execução no servidor", loading: false, source: null })
+      return
+    }
+    if (!navigator.geolocation) {
+      fetchIPLocation()
       return
     }
 
-    navigator.permissions
-      .query({ name: "geolocation" })
-      .then((perm) => {
-        if (perm.state === "denied") {
-          setState({
-            latitude: null,
-            longitude: null,
-            error: "Permissão de localização negada",
-            loading: false,
-          })
-        }
-      })
-      .catch(() => {})
+    const handleIPFallback = () => {
+      // fallback para geolocalização por IP
+      fetchIPLocation()
+    }
 
     const success = (pos: GeolocationPosition) => {
       setState({
@@ -49,32 +41,57 @@ export const useGeolocation = (): GeolocationState => {
         longitude: pos.coords.longitude,
         error: null,
         loading: false,
+        source: 'gps',
       })
     }
 
     const fail = (err: GeolocationPositionError) => {
-      let msg = err.message
-      switch (err.code) {
-        case err.PERMISSION_DENIED:
-          msg = "Permissão negada pelo usuário"
-          break
-        case err.POSITION_UNAVAILABLE:
-          msg = "Posição indisponível"
-          break
-        case err.TIMEOUT:
-          msg = "Tempo para obter localização excedido"
-          break
-      }
-      setState({ latitude: null, longitude: null, error: msg, loading: false })
+      console.warn("Geolocalização GPS falhou:", err.message)
+      // tenta fallback por IP
+      handleIPFallback()
     }
 
     const options: PositionOptions = {
       enableHighAccuracy: false,
-      timeout: 20000,
+      timeout: 15000,
       maximumAge: 0,
     }
 
     navigator.geolocation.getCurrentPosition(success, fail, options)
+
+    // função para buscar por IP
+    function fetchIPLocation() {
+      fetch("https://ipapi.co/json")
+        .then((res) => {
+          if (!res.ok) throw new Error("IP lookup falhou")
+          return res.json()
+        })
+        .then((data) => {
+          const lat = parseFloat(data.latitude)
+          const lng = parseFloat(data.longitude)
+          if (!isNaN(lat) && !isNaN(lng)) {
+            setState({
+              latitude: lat,
+              longitude: lng,
+              error: null,
+              loading: false,
+              source: 'ip',
+            })
+          } else {
+            throw new Error("Dados de IP inválidos")
+          }
+        })
+        .catch((e) => {
+          console.error("Falha no fallback por IP:", e)
+          setState({
+            latitude: null,
+            longitude: null,
+            error: "Não foi possível obter localização",
+            loading: false,
+            source: null,
+          })
+        })
+    }
   }, [])
 
   return state

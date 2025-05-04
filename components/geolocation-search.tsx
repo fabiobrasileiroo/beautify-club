@@ -1,3 +1,4 @@
+
 // components/GeolocationSearch.tsx
 "use client"
 
@@ -15,7 +16,7 @@ export function GeolocationSearch() {
   const [searchTerm, setSearchTerm] = useState(searchParams.get("search") || "")
   const [location, setLocation]   = useState(searchParams.get("location") || "")
   const [isSearching, setIsSearching] = useState(false)
-  const { latitude, longitude, loading, error } = useGeolocation()
+  const { latitude, longitude, loading, error, source } = useGeolocation()
 
   const handleSearch = () => {
     setIsSearching(true)
@@ -49,7 +50,8 @@ export function GeolocationSearch() {
       ]
         .filter(Boolean)
         .join(", ")
-      setLocation(place || data.display_name)
+      const suffix = source === 'ip' ? ' (aprox. via IP)' : ''
+      setLocation(place ? place + suffix : data.display_name + suffix)
     } catch {
       setLocation("Endereço não disponível")
     } finally {
@@ -71,7 +73,7 @@ export function GeolocationSearch() {
         </div>
 
         <div className="relative">
-          <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
+          <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" onClick={handleUseMyLocation} />
           <Input
             placeholder="Localização"
             className="pl-10"
@@ -81,17 +83,17 @@ export function GeolocationSearch() {
           <Button
             variant="ghost"
             size="sm"
-            className="mt-2 md:mt-0 md:absolute md:right-2 md:top-1/2 md:-translate-y-1/2 text-xs"
+            className="mt-0 absolute right-2 top-1/2 -translate-y-1/2 text-xs"
             onClick={handleUseMyLocation}
             disabled={loading || !!error || isSearching}
           >
             {(loading || isSearching) ? (
               <>
                 <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                Carregando...
+                <span className="max-sm:hidden">Carregando...</span>
               </>
             ) : (
-              "Usar minha localização"
+              <span className="max-sm:hidden">Usar minha Localização</span>
             )}
           </Button>
         </div>
