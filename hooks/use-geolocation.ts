@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react"
 
-interface GeolocationState {
+export interface GeolocationState {
   latitude: number | null
   longitude: number | null
   error: string | null
@@ -19,7 +19,6 @@ export const useGeolocation = (): GeolocationState => {
   })
 
   useEffect(() => {
-    // Só roda no cliente
     if (typeof window === "undefined" || !navigator.geolocation) {
       setState({
         latitude: null,
@@ -30,11 +29,11 @@ export const useGeolocation = (): GeolocationState => {
       return
     }
 
-    // Primeiro, checar o status da permissão (opcional, mas útil):
+    // Opcional: detecta se já negaram a permissão
     navigator.permissions
       .query({ name: "geolocation" })
-      .then((permissionStatus) => {
-        if (permissionStatus.state === "denied") {
+      .then((perm) => {
+        if (perm.state === "denied") {
           setState({
             latitude: null,
             longitude: null,
@@ -43,9 +42,7 @@ export const useGeolocation = (): GeolocationState => {
           })
         }
       })
-      .catch(() => {
-        // pode ignorar erros nessa query, pois nem todos os navegadores suportam
-      })
+      .catch(() => {})
 
     const success = (pos: GeolocationPosition) => {
       setState({
@@ -57,41 +54,29 @@ export const useGeolocation = (): GeolocationState => {
     }
 
     const fail = (err: GeolocationPositionError) => {
-      let message = err.message
+      let msg = err.message
       switch (err.code) {
         case err.PERMISSION_DENIED:
-          message = "Permissão negada pelo usuário"
+          msg = "Permissão negada pelo usuário"
           break
         case err.POSITION_UNAVAILABLE:
-          message = "Posição indisponível"
+          msg = "Posição indisponível"
           break
         case err.TIMEOUT:
-          message = "Tempo para obter localização excedido"
+          msg = "Tempo para obter localização excedido"
           break
       }
-      setState({
-        latitude: null,
-        longitude: null,
-        error: message,
-        loading: false,
-      })
+      setState({ latitude: null, longitude: null, error: msg, loading: false })
     }
 
     const options: PositionOptions = {
-      enableHighAccuracy: true,
-      timeout: 10000,      // 10 segundos, aumenta chance de sucesso
-      maximumAge: 0,
+      enableHighAccuracy: false, // false para fallback por IP/Wi-Fi em desktop
+      timeout:       20000,      // 20s
+      maximumAge:    0,
     }
 
-    // Tenta obter a posição uma vez
     navigator.geolocation.getCurrentPosition(success, fail, options)
-
-    // Se quiser monitorar mudanças na posição, ao invés de apenas uma vez:
-    // const watcherId = navigator.geolocation.watchPosition(success, fail, options)
-    // return () => { navigator.geolocation.clearWatch(watcherId) }
-
   }, [])
 
-  console.log("🚀 ~ useGeolocation ~ state:", state)
   return state
 }
