@@ -9,7 +9,7 @@ import { Calendar, Clock, DollarSign, Users } from "lucide-react"
 import prismadb from "@/lib/prisma"
 
 export default async function PartnerDashboardPage() {
-  const { userId } = auth()
+  const { userId } = await auth()
   const user = await currentUser()
 
   if (!userId || !user) {

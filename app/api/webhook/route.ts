@@ -1,11 +1,12 @@
 import { Webhook } from "svix"
 import { headers } from "next/headers"
 import type { WebhookEvent } from "@clerk/nextjs/server"
+import { clerkClient } from "@clerk/nextjs/server"
 import prismadb from "@/lib/prisma"
 
 export async function POST(req: Request) {
+    const clerk = await clerkClient();
   // Obter o cabeçalho de assinatura do Clerk
-  console.log('teste webhook', req)
   const headerPayload = headers()
   const svix_id = (await headerPayload).get("svix-id")
   const svix_timestamp = (await headerPayload).get("svix-timestamp")
@@ -47,9 +48,16 @@ export async function POST(req: Request) {
 
   // Processar eventos do Clerk
   if (eventType === "user.created") {
-    const { id, email_addresses, first_name, last_name } = evt.data
+    const { id, email_addresses, first_name, last_name, public_metadata } = evt.data
 
     try {
+      // Verificar se é o primeiro usuário no sistema (será admin)
+      const userCount = await prismadb.user.count()
+      const isFirstUser = userCount === 0
+
+      // Definir o papel com base em se é o primeiro usuário ou não
+      const userRole = isFirstUser ? "ADMIN" : (public_metadata?.role as string) || "CLIENT"
+
       // Verificar se o usuário já existe
       const existingUser = await prismadb.user.findUnique({
         where: {
@@ -64,13 +72,26 @@ export async function POST(req: Request) {
             clerk_id: id,
             email: email_addresses[0].email_address,
             name: `${first_name || ""} ${last_name || ""}`.trim() || "Usuário",
-            role: "CLIENT",
+            role: userRole as "ADMIN" | "PARTNER" | "CLIENT",
           },
         })
 
-        console.log(`Usuário criado com sucesso via webhook: ${newUser.id}`)
+        // Se for o primeiro usuário, atualizar os metadados do Clerk para refletir o papel de admin
+        if (isFirstUser) {
+          try {
+            await clerk.users.updateUser(id, {
+              publicMetadata: {
+                role: "ADMIN",
+                userId: newUser.id,
+              },
+            })
+            console.log(`Primeiro usuário definido como ADMIN: ${newUser.id}`)
+          } catch (error) {
+            console.error("Erro ao atualizar metadados do Clerk:", error)
+          }
+        }
 
-        // Você pode adicionar aqui lógica para criar registros relacionados, como uma assinatura gratuita inicial
+        console.log(`Usuário criado com sucesso via webhook: ${newUser.id}, Role: ${userRole}`)
       } else {
         console.log(`Usuário já existe: ${existingUser.id}`)
       }
@@ -81,7 +102,7 @@ export async function POST(req: Request) {
   }
 
   if (eventType === "user.updated") {
-    const { id, email_addresses, first_name, last_name } = evt.data
+    const { id, email_addresses, first_name, last_name, public_metadata } = evt.data
 
     try {
       // Atualizar usuário no banco de dados
@@ -91,6 +112,11 @@ export async function POST(req: Request) {
         },
       })
 
+      // Obter o papel dos metadados ou manter o atual
+      const userRole = existingUser
+        ? (public_metadata?.role as string) || existingUser.role
+        : (public_metadata?.role as string) || "CLIENT"
+
       if (existingUser) {
         await prismadb.user.update({
           where: {
@@ -99,10 +125,12 @@ export async function POST(req: Request) {
           data: {
             email: email_addresses[0].email_address,
             name: `${first_name || ""} ${last_name || ""}`.trim() || "Usuário",
+            // Não atualizar o papel se já existir um, a menos que seja explicitamente definido nos metadados
+            role: public_metadata?.role ? (public_metadata.role as "ADMIN" | "PARTNER" | "CLIENT") : existingUser.role,
           },
         })
 
-        console.log(`Usuário atualizado com sucesso via webhook: ${existingUser.id}`)
+        console.log(`Usuário atualizado com sucesso via webhook: ${existingUser.id}, Role: ${existingUser.role}`)
       } else {
         // Se o usuário não existir, criar um novo
         const newUser = await prismadb.user.create({
@@ -110,11 +138,11 @@ export async function POST(req: Request) {
             clerk_id: id,
             email: email_addresses[0].email_address,
             name: `${first_name || ""} ${last_name || ""}`.trim() || "Usuário",
-            role: "CLIENT",
+            role: userRole as "ADMIN" | "PARTNER" | "CLIENT",
           },
         })
 
-        console.log(`Usuário criado durante atualização via webhook: ${newUser.id}`)
+        console.log(`Usuário criado durante atualização via webhook: ${newUser.id}, Role: ${userRole}`)
       }
     } catch (error) {
       console.error("Erro ao atualizar usuário via webhook:", error)
@@ -126,14 +154,24 @@ export async function POST(req: Request) {
     const { id } = evt.data
 
     try {
-      // Excluir usuário do banco de dados
-      await prismadb.user.delete({
+      // Verificar se o usuário existe antes de tentar excluir
+      const existingUser = await prismadb.user.findUnique({
         where: {
           clerk_id: id,
         },
       })
 
-      console.log(`Usuário excluído com sucesso via webhook: ${id}`)
+      if (existingUser) {
+        // Excluir usuário do banco de dados
+        await prismadb.user.delete({
+          where: {
+            clerk_id: id,
+          },
+        })
+        console.log(`Usuário excluído com sucesso via webhook: ${id}`)
+      } else {
+        console.log(`Usuário não encontrado para exclusão: ${id}`)
+      }
     } catch (error) {
       console.error("Erro ao excluir usuário via webhook:", error)
       return new Response(`Erro ao excluir usuário: ${error}`, { status: 500 })

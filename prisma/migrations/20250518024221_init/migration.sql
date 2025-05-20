@@ -22,7 +22,11 @@ CREATE TABLE `salons` (
     `latitude` DOUBLE NOT NULL,
     `longitude` DOUBLE NOT NULL,
     `contact_info` VARCHAR(191) NOT NULL,
+    `description` TEXT NULL,
+    `pix_key` VARCHAR(191) NULL,
+    `pix_key_type` VARCHAR(191) NULL,
     `status` ENUM('PENDING', 'APPROVED', 'REJECTED') NOT NULL DEFAULT 'PENDING',
+    `rejection_reason` TEXT NULL,
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updated_at` DATETIME(3) NOT NULL,
 

@@ -9,7 +9,7 @@ import { Calendar, DollarSign, Store, Users } from "lucide-react"
 import prismadb from "@/lib/prisma"
 
 export default async function AdminDashboardPage() {
-  const { userId } = auth()
+  const { userId } = await auth()
   const user = await currentUser()
 
   if (!userId || !user) {

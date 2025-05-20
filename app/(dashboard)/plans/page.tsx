@@ -7,7 +7,7 @@ import { Check } from "lucide-react"
 import prismadb from "@/lib/prisma"
 
 export default async function PlansPage() {
-  const { userId } = auth()
+  const { userId } = await auth()
 
   if (!userId) {
     redirect("/sign-in")

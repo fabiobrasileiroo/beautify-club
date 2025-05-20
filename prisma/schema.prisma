@@ -43,6 +43,14 @@ enum PaymentStatus {
   REFUNDED
 }
 
+enum PixKeyType {
+  CPF
+  CNPJ
+  EMAIL
+  TELEFONE
+  ALEATORIA
+}
+
 // Models
 model User {
   id                   String                 @id @default(uuid())
@@ -70,7 +78,11 @@ model Salon {
   latitude             Float
   longitude            Float
   contact_info         String
+  description          String?                @db.Text
+  pix_key              String?
+  pix_key_type         String?
   status               SalonStatus            @default(PENDING)
+  rejection_reason     String?                @db.Text
   created_at           DateTime               @default(now())
   updated_at           DateTime               @updatedAt
   

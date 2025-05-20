@@ -8,7 +8,7 @@ import { Clock, Edit, Plus, Trash } from "lucide-react"
 import prismadb from "@/lib/prisma"
 
 export default async function PartnerServicesPage() {
-  const { userId } = auth()
+  const { userId } = await auth()
   const user = await currentUser()
 
   if (!userId || !user) {

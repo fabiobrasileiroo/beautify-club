@@ -9,7 +9,7 @@ import { Calendar, Clock, MapPin, Scissors } from "lucide-react"
 import prismadb from "@/lib/prisma"
 
 export default async function AppointmentsPage() {
-  const { userId } = auth()
+  const { userId } = await auth()
 
   if (!userId) {
     redirect("/sign-in")

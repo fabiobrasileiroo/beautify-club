@@ -8,7 +8,7 @@ import { Check, MapPin, Phone, X } from "lucide-react"
 import prismadb from "@/lib/prisma"
 
 export default async function AdminPartnersPage() {
-  const { userId } = auth()
+  const { userId } = await auth()
   const user = await currentUser()
 
   if (!userId || !user) {
@@ -89,13 +89,17 @@ export default async function AdminPartnersPage() {
                     </p>
                   </div>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm">
-                      Ver detalhes
-                    </Button>
-                    <Button variant="accent" size="sm" className="text-white">
-                      <Check className="h-4 w-4 mr-2" />
-                      Aprovar
-                    </Button>
+                    <Link href={`/admin/partners/approve/${salon.id}`}>
+                      <Button variant="outline" size="sm">
+                        Ver detalhes
+                      </Button>
+                    </Link>
+                    <Link href={`/admin/partners/approve/${salon.id}`}>
+                      <Button variant="accent" size="sm" className="text-white">
+                        <Check className="h-4 w-4 mr-2" />
+                        Aprovar
+                      </Button>
+                    </Link>
                     <Button variant="destructive" size="sm">
                       <X className="h-4 w-4 mr-2" />
                       Rejeitar

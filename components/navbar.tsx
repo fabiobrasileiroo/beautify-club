@@ -1,8 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import type React from "react"
+
+import { useState, useEffect } from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { UserButton, useUser } from "@clerk/nextjs"
 import { Menu, X } from "lucide-react"
 
@@ -11,10 +13,49 @@ import { ModeToggle } from "@/components/mode-toggle"
 import { useMobile } from "@/hooks/use-mobile"
 
 export function Navbar() {
-  const { isSignedIn, user } = useUser()
+  const { isSignedIn, user, isLoaded } = useUser()
   const pathname = usePathname()
+  const router = useRouter()
   const isMobile = useMobile()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [userRole, setUserRole] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (isLoaded && user) {
+      const role = user.publicMetadata?.role as string
+      setUserRole(role || "CLIENT")
+
+      // Verificar se o papel está correto no banco de dados
+      const checkUserRole = async () => {
+        try {
+          const response = await fetch("/api/user/check-role")
+          if (response.ok) {
+            const data = await response.json()
+
+            // Se o papel no banco de dados for diferente do papel nos metadados, atualizar a UI
+            if (data.role && data.role !== role) {
+              setUserRole(data.role)
+              // Forçar um refresh para atualizar os metadados do Clerk
+              window.location.reload()
+            }
+          }
+        } catch (error) {
+          console.error("Erro ao verificar papel do usuário:", error)
+        }
+      }
+
+      checkUserRole()
+
+      // Redirecionar com base no papel do usuário se estiver na página errada
+      if (role === "ADMIN" && !pathname.startsWith("/admin")) {
+        router.push("/admin/dashboard")
+      } else if (role === "PARTNER" && !pathname.startsWith("/partner")) {
+        router.push("/partner/dashboard")
+      } else if (role === "CLIENT" && (pathname.startsWith("/admin") || pathname.startsWith("/partner"))) {
+        router.push("/dashboard")
+      }
+    }
+  }, [isLoaded, user, pathname, router])
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen)
@@ -28,9 +69,31 @@ export function Navbar() {
     return pathname === path
   }
 
-  const userRole = (user?.publicMetadata?.role as string) || "CLIENT"
+  const handleLogoClick = (e: React.MouseEvent) => {
+    e.preventDefault()
+    if (isSignedIn) {
+      // Redirecionar com base no papel do usuário
+      if (userRole === "ADMIN") {
+        router.push("/admin/dashboard")
+      } else if (userRole === "PARTNER") {
+        router.push("/partner/dashboard")
+      } else {
+        router.push("/dashboard")
+      }
+    } else {
+      // Se não estiver logado, vai para a landing page
+      router.push("/")
+    }
+    closeMenu()
+  }
 
   const renderNavLinks = () => {
+    // Se não estiver carregado ainda, não mostrar nada
+    if (!isLoaded) {
+      return null
+    }
+
+    // Se não estiver logado, mostrar links de login/cadastro
     if (!isSignedIn) {
       return (
         <>
@@ -40,7 +103,7 @@ export function Navbar() {
             </Button>
           </Link>
           <Link href="/sign-up" onClick={closeMenu}>
-            <Button variant="accent" className="text-white font-medium">
+            <Button variant="default" className="font-medium">
               Cadastrar
             </Button>
           </Link>
@@ -48,6 +111,7 @@ export function Navbar() {
       )
     }
 
+    // Links específicos para administradores
     if (userRole === "ADMIN") {
       return (
         <>
@@ -66,15 +130,26 @@ export function Navbar() {
               Planos
             </Button>
           </Link>
-          <Link href="/admin/reports" onClick={closeMenu}>
-            <Button variant="ghost" className={isActive("/admin/reports") ? "bg-secondary font-medium" : ""}>
-              Relatórios
+          <Link href="/admin/users" onClick={closeMenu}>
+            <Button variant="ghost" className={isActive("/admin/users") ? "bg-secondary font-medium" : ""}>
+              Usuários
+            </Button>
+          </Link>
+          <Link href="/admin/finances" onClick={closeMenu}>
+            <Button variant="ghost" className={isActive("/admin/finances") ? "bg-secondary font-medium" : ""}>
+              Finanças
+            </Button>
+          </Link>
+          <Link href="/profile" onClick={closeMenu}>
+            <Button variant="ghost" className={isActive("/profile") ? "bg-secondary font-medium" : ""}>
+              Perfil
             </Button>
           </Link>
         </>
       )
     }
 
+    // Links específicos para parceiros
     if (userRole === "PARTNER") {
       return (
         <>
@@ -93,15 +168,21 @@ export function Navbar() {
               Agendamentos
             </Button>
           </Link>
-          <Link href="/partner/reports" onClick={closeMenu}>
-            <Button variant="ghost" className={isActive("/partner/reports") ? "bg-secondary font-medium" : ""}>
-              Relatórios
+          <Link href="/partner/finances" onClick={closeMenu}>
+            <Button variant="ghost" className={isActive("/partner/finances") ? "bg-secondary font-medium" : ""}>
+              Finanças
+            </Button>
+          </Link>
+          <Link href="/profile" onClick={closeMenu}>
+            <Button variant="ghost" className={isActive("/profile") ? "bg-secondary font-medium" : ""}>
+              Perfil
             </Button>
           </Link>
         </>
       )
     }
 
+    // Links para clientes (padrão)
     return (
       <>
         <Link href="/dashboard" onClick={closeMenu}>
@@ -124,16 +205,21 @@ export function Navbar() {
             Planos
           </Button>
         </Link>
+        <Link href="/profile" onClick={closeMenu}>
+          <Button variant="ghost" className={isActive("/profile") ? "bg-secondary font-medium" : ""}>
+            Perfil
+          </Button>
+        </Link>
       </>
     )
   }
 
   return (
-    <nav className="w-full bg-primary border-b">
+    <nav className="w-full bg-card border-b">
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
-        <Link href="/" className="flex items-center space-x-2" onClick={closeMenu}>
+        <a href="#" onClick={handleLogoClick} className="flex items-center space-x-2">
           <span className="font-bold text-2xl text-foreground">Beautify Club</span>
-        </Link>
+        </a>
 
         {isMobile ? (
           <>
