@@ -87,7 +87,7 @@ export default function LandingPage() {
             </div>
             <div className="lg:w-1/2 animate-slide-in-right">
               <Image
-                src="/placeholder.svg?height=600&width=600"
+                src="/backgroundImageInicial.png"
                 alt="Beautify Club"
                 width={600}
                 height={600}
