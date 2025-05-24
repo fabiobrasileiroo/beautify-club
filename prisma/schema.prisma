@@ -1,5 +1,5 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// This is your Prisma schema file.
+// Learn more in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
   provider = "prisma-client-js"
@@ -53,14 +53,14 @@ enum PixKeyType {
 
 // Models
 model User {
-  id                   String                 @id @default(uuid())
-  clerk_id             String                 @unique
-  name                 String
-  email                String                 @unique
-  role                 UserRole               @default(CLIENT)
-  created_at           DateTime               @default(now())
-  updated_at           DateTime               @updatedAt
-  
+  id                   String                 @id @default(uuid())         @map("id_user")
+  clerk_id             String                 @unique @db.VarChar(50)       @map("clerk_id_user")
+  name                 String                 @db.VarChar(50)               @map("name_user")
+  email                String                 @unique @db.VarChar(255)      @map("email_user")
+  role                 UserRole               @default(CLIENT)              @map("role_user")
+  created_at           DateTime               @default(now())               @map("created_at_user")
+  updated_at           DateTime               @updatedAt                   @map("updated_at_user")
+
   // Relationships
   salon                Salon?
   subscriptions        Subscription[]
@@ -71,23 +71,23 @@ model User {
 }
 
 model Salon {
-  id                   String                 @id @default(uuid())
-  user_id              String                 @unique
-  name                 String
-  address              String
-  latitude             Float
-  longitude            Float
-  contact_info         String
-  description          String?                @db.Text
-  pix_key              String?
-  pix_key_type         String?
-  status               SalonStatus            @default(PENDING)
-  rejection_reason     String?                @db.Text
-  created_at           DateTime               @default(now())
-  updated_at           DateTime               @updatedAt
-  
+  id                   String                 @id @default(uuid())         @map("id_salon")
+  user_id              String                 @unique @db.VarChar(50)       @map("user_id_salon")
+  name                 String                 @db.VarChar(100)              @map("name_salon")
+  address              String                 @db.VarChar(255)              @map("address_salon")
+  latitude             Float                                            @map("latitude_salon")
+  longitude            Float                                            @map("longitude_salon")
+  contact_info         String                 @db.VarChar(100)              @map("contact_info_salon")
+  description          String?                @db.Text                     @map("description_salon")
+  pix_key              String?                @db.VarChar(50)               @map("pix_key_salon")
+  pix_key_type         String?                @db.VarChar(50)               @map("pix_key_type_salon")
+  status               SalonStatus            @default(PENDING)             @map("status_salon")
+  rejection_reason     String?                @db.Text                     @map("rejection_reason_salon")
+  created_at           DateTime               @default(now())               @map("created_at_salon")
+  updated_at           DateTime               @updatedAt                   @map("updated_at_salon")
+
   // Relationships
-  user                 User                   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user                 User                   @relation(fields: [user_id], references: [id])
   services             Service[]
   appointments         Appointment[]
   commissions          Commission[]
@@ -96,31 +96,31 @@ model Salon {
 }
 
 model Service {
-  id                   String                 @id @default(uuid())
-  salon_id             String
-  name                 String
-  description          String                 @db.Text
-  base_price           Float
-  duration_min         Int
-  created_at           DateTime               @default(now())
-  updated_at           DateTime               @updatedAt
-  
+  id                   String                 @id @default(uuid())         @map("id_service")
+  salon_id             String                 @db.VarChar(50)               @map("salon_id_service")
+  name                 String                 @db.VarChar(100)              @map("name_service")
+  description          String                 @db.Text                     @map("description_service")
+  base_price           Float                                            @map("base_price_service")
+  duration_min         Int                                              @map("duration_min_service")
+  created_at           DateTime               @default(now())               @map("created_at_service")
+  updated_at           DateTime               @updatedAt                   @map("updated_at_service")
+
   // Relationships
-  salon                Salon                  @relation(fields: [salon_id], references: [id], onDelete: Cascade)
+  salon                Salon                  @relation(fields: [salon_id], references: [id])
   appointments         Appointment[]
 
   @@map("services")
 }
 
 model SubscriptionPlan {
-  id                   String                 @id @default(uuid())
-  name                 String
-  price                Float
-  max_services_per_month Int?
-  features             String                 @db.Text
-  created_at           DateTime               @default(now())
-  updated_at           DateTime               @updatedAt
-  
+  id                   String                 @id @default(uuid())         @map("id_subscription_plan")
+  name                 String                 @db.VarChar(100)              @map("name_subscription_plan")
+  price                Float                                            @map("price_subscription_plan")
+  max_services_per_month Int?                                           @map("max_services_per_month_subscription_plan")
+  features             String                 @db.Text                     @map("features_subscription_plan")
+  created_at           DateTime               @default(now())               @map("created_at_subscription_plan")
+  updated_at           DateTime               @updatedAt                   @map("updated_at_subscription_plan")
+
   // Relationships
   subscriptions        Subscription[]
 
@@ -128,17 +128,17 @@ model SubscriptionPlan {
 }
 
 model Subscription {
-  id                   String                 @id @default(uuid())
-  user_id              String
-  plan_id              String
-  start_date           DateTime
-  end_date             DateTime
-  status               SubscriptionStatus     @default(ACTIVE)
-  created_at           DateTime               @default(now())
-  updated_at           DateTime               @updatedAt
-  
+  id                   String                 @id @default(uuid())         @map("id_subscription")
+  user_id              String                 @db.VarChar(50)               @map("user_id_subscription")
+  plan_id              String                 @db.VarChar(50)               @map("plan_id_subscription")
+  start_date           DateTime                                     @map("start_date_subscription")
+  end_date             DateTime                                     @map("end_date_subscription")
+  status               SubscriptionStatus     @default(ACTIVE)             @map("status_subscription")
+  created_at           DateTime               @default(now())               @map("created_at_subscription")
+  updated_at           DateTime               @updatedAt                   @map("updated_at_subscription")
+
   // Relationships
-  user                 User                   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user                 User                   @relation(fields: [user_id], references: [id])
   plan                 SubscriptionPlan       @relation(fields: [plan_id], references: [id])
   payments             Payment[]
 
@@ -146,68 +146,68 @@ model Subscription {
 }
 
 model Appointment {
-  id                   String                 @id @default(uuid())
-  user_id              String
-  service_id           String
-  salon_id             String
-  scheduled_at         DateTime
-  price_charged        Float
-  status               AppointmentStatus      @default(SCHEDULED)
-  created_at           DateTime               @default(now())
-  updated_at           DateTime               @updatedAt
-  
+  id                   String                 @id @default(uuid())         @map("id_appointment")
+  user_id              String                 @db.VarChar(50)               @map("user_id_appointment")
+  service_id           String                 @db.VarChar(50)               @map("service_id_appointment")
+  salon_id             String                 @db.VarChar(50)               @map("salon_id_appointment")
+  scheduled_at         DateTime                                     @map("scheduled_at_appointment")
+  price_charged        Float                                            @map("price_charged_appointment")
+  status               AppointmentStatus      @default(SCHEDULED)           @map("status_appointment")
+  created_at           DateTime               @default(now())               @map("created_at_appointment")
+  updated_at           DateTime               @updatedAt                   @map("updated_at_appointment")
+
   // Relationships
-  user                 User                   @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  service              Service                @relation(fields: [service_id], references: [id], onDelete: Cascade)
-  salon                Salon                  @relation(fields: [salon_id], references: [id], onDelete: Cascade)
+  user                 User                   @relation(fields: [user_id], references: [id])
+  service              Service                @relation(fields: [service_id], references: [id])
+  salon                Salon                  @relation(fields: [salon_id], references: [id])
   commission           Commission?
 
   @@map("appointments")
 }
 
 model Payment {
-  id                   String                 @id @default(uuid())
-  subscription_id      String
-  amount               Float
-  paid_at              DateTime?
-  method               String
-  status               PaymentStatus          @default(PENDING)
-  created_at           DateTime               @default(now())
-  updated_at           DateTime               @updatedAt
-  
+  id                   String                 @id @default(uuid())         @map("id_payment")
+  subscription_id      String                 @db.VarChar(50)               @map("subscription_id_payment")
+  amount               Float                                            @map("amount_payment")
+  paid_at              DateTime?                                    @map("paid_at_payment")
+  method               String                 @db.VarChar(50)               @map("method_payment")
+  status               PaymentStatus          @default(PENDING)             @map("status_payment")
+  created_at           DateTime               @default(now())               @map("created_at_payment")
+  updated_at           DateTime               @updatedAt                   @map("updated_at_payment")
+
   // Relationships
-  subscription         Subscription           @relation(fields: [subscription_id], references: [id], onDelete: Cascade)
+  subscription         Subscription           @relation(fields: [subscription_id], references: [id])
 
   @@map("payments")
 }
 
 model Commission {
-  id                   String                 @id @default(uuid())
-  appointment_id       String                 @unique
-  salon_id             String
-  amount               Float
-  paid_flag            Boolean                @default(false)
-  paid_at              DateTime?
-  created_at           DateTime               @default(now())
-  updated_at           DateTime               @updatedAt
-  
+  id                   String                 @id @default(uuid())         @map("id_commission")
+  appointment_id       String                 @unique @db.VarChar(50)       @map("appointment_id_commission")
+  salon_id             String                 @db.VarChar(50)               @map("salon_id_commission")
+  amount               Float                                            @map("amount_commission")
+  paid_flag            Boolean                @default(false)               @map("paid_flag_commission")
+  paid_at              DateTime?                                    @map("paid_at_commission")
+  created_at           DateTime               @default(now())               @map("created_at_commission")
+  updated_at           DateTime               @updatedAt                   @map("updated_at_commission")
+
   // Relationships
-  appointment          Appointment            @relation(fields: [appointment_id], references: [id], onDelete: Cascade)
-  salon                Salon                  @relation(fields: [salon_id], references: [id], onDelete: Cascade)
+  appointment          Appointment            @relation(fields: [appointment_id], references: [id])
+  salon                Salon                  @relation(fields: [salon_id], references: [id])
 
   @@map("commissions")
 }
 
 model Workshop {
-  id                   String                 @id @default(uuid())
-  title                String
-  description          String                 @db.Text
-  price                Float
-  scheduled_at         DateTime
-  capacity             Int
-  created_at           DateTime               @default(now())
-  updated_at           DateTime               @updatedAt
-  
+  id                   String                 @id @default(uuid())         @map("id_workshop")
+  title                String                 @db.VarChar(100)              @map("title_workshop")
+  description          String                 @db.Text                     @map("description_workshop")
+  price                Float                                            @map("price_workshop")
+  scheduled_at         DateTime                                     @map("scheduled_at_workshop")
+  capacity             Int                                              @map("capacity_workshop")
+  created_at           DateTime               @default(now())               @map("created_at_workshop")
+  updated_at           DateTime               @updatedAt                   @map("updated_at_workshop")
+
   // Relationships
   registrations        WorkshopRegistration[]
 
@@ -215,14 +215,14 @@ model Workshop {
 }
 
 model WorkshopRegistration {
-  id                   String                 @id @default(uuid())
-  user_id              String
-  workshop_id          String
-  registered_at        DateTime               @default(now())
-  
+  id                   String                 @id @default(uuid())         @map("id_workshop_registration")
+  user_id              String                 @db.VarChar(50)               @map("user_id_workshop_registration")
+  workshop_id          String                 @db.VarChar(50)               @map("workshop_id_workshop_registration")
+  registered_at        DateTime               @default(now())               @map("registered_at_workshop_registration")
+
   // Relationships
-  user                 User                   @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  workshop             Workshop               @relation(fields: [workshop_id], references: [id], onDelete: Cascade)
+  user                 User                   @relation(fields: [user_id], references: [id])
+  workshop             Workshop               @relation(fields: [workshop_id], references: [id])
 
   @@map("workshop_registrations")
 }

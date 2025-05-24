@@ -7,13 +7,18 @@ import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { UserButton, useUser } from "@clerk/nextjs"
 import { Menu, X } from "lucide-react"
+import Image from "next/image"
 
 import { Button } from "@/components/ui/button"
 import { ModeToggle } from "@/components/mode-toggle"
 import { useMobile } from "@/hooks/use-mobile"
+import { ThemeProvider } from "./theme-provider"
+import { useTheme } from "next-themes"
 
 export function Navbar() {
   const { isSignedIn, user, isLoaded } = useUser()
+  const { resolvedTheme } = useTheme()
+  console.log("🚀 ~ Navbar ~ resolvedTheme:", resolvedTheme)
   const pathname = usePathname()
   const router = useRouter()
   const isMobile = useMobile()
@@ -218,7 +223,27 @@ export function Navbar() {
     <nav className="w-full bg-card border-b">
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
         <a href="#" onClick={handleLogoClick} className="flex items-center space-x-2">
-          <span className="font-bold text-2xl text-foreground">Beautify Club</span>
+          {/* <span className="font-bold text-2xl text-foreground">Beautify Club</span> */}
+          <div className="scale-125 transition-transform duration-300 ">
+            {resolvedTheme === "dark" ?
+              <Image
+                src="/logo-no-background-dark.png"
+                className="rounded-md"
+                width={100}
+                height={100}
+                alt="logo"
+              />
+              :
+              <Image
+                src="/logo-no-background-light.png"
+                className="rounded-md"
+                width={100}
+                height={100}
+                alt="logo"
+              />
+            }
+          </div>
+
         </a>
 
         {isMobile ? (
