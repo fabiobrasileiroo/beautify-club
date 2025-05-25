@@ -17,8 +17,8 @@ import { useTheme } from "next-themes"
 
 export function Navbar() {
   const { isSignedIn, user, isLoaded } = useUser()
-  const { resolvedTheme } = useTheme()
-  console.log("🚀 ~ Navbar ~ resolvedTheme:", resolvedTheme)
+  const { resolvedTheme,theme } = useTheme()
+  console.log("🚀 ~ Navbar ~ resolvedTheme:", resolvedTheme,theme)
   const pathname = usePathname()
   const router = useRouter()
   const isMobile = useMobile()
