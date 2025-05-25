@@ -6,6 +6,12 @@
 
 O Beautify Club é uma plataforma que conecta usuários a estabelecimentos de beleza e bem-estar, permitindo agendamentos ilimitados através de um sistema de assinatura. Inspirado no modelo do **Gympass**, com monetização por mensalidade, comissão de uso, workshops, e dashboards de gestão.
 
+## Diagrama de classes
+<img src="./beautify_club_diagram_class.png"/>
+
+## Diagrama de der
+<img src="./beautify_club_diagram_erd.png"/>
+
 ## 🛠️ Tecnologias Utilizadas
 
 - **Next.js** – Framework React para SSR/SSG
