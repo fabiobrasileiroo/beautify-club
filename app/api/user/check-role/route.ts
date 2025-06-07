@@ -17,6 +17,7 @@ export async function GET() {
         clerk_id: userId,
       },
     })
+    console.log("🚀 ~ GET ~ dbUser:", dbUser)
 
     if (!dbUser) {
       return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 })

@@ -17,13 +17,17 @@ import { useTheme } from "next-themes"
 
 export function Navbar() {
   const { isSignedIn, user, isLoaded } = useUser()
-  const { resolvedTheme,theme } = useTheme()
-  console.log("🚀 ~ Navbar ~ resolvedTheme:", resolvedTheme,theme)
+  const { resolvedTheme } = useTheme()
   const pathname = usePathname()
   const router = useRouter()
   const isMobile = useMobile()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [userRole, setUserRole] = useState<string | null>(null)
+  // const [mounted, setMounted] = useState(false)
+
+  // useEffect(() => setMounted(true), [])
+
+  // if (!mounted) return null
 
   useEffect(() => {
     if (isLoaded && user) {

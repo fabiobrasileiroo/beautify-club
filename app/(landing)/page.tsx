@@ -6,6 +6,8 @@ import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useUser } from "@clerk/nextjs"
 import { ArrowRight, Scissors, Calendar, CreditCard } from "lucide-react"
+import Lottie from "lottie-react";
+import salonLoading from './salon.json'
 
 import { Button } from "@/components/ui/button"
 import { Navbar } from "@/components/navbar"
@@ -45,7 +47,8 @@ export default function LandingPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-pulse text-primary text-2xl">Carregando...</div>
+        {/* <div className="animate-pulse text-primary text-2xl">Carregando...</div> */}
+        <Lottie width={20}  animationData={salonLoading} loop={true} />
       </div>
     )
   }
