@@ -40,7 +40,7 @@ export async function GET() {
 
       console.log(`Papel do usuário sincronizado: ${dbUser.id}, Role: ${dbUser.role}`)
     }
-
+    console.log('enviou')
     return NextResponse.json({
       success: true,
       role: dbUser.role,

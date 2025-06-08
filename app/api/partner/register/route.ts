@@ -1,43 +1,36 @@
-import { auth } from "@clerk/nextjs/server"
 import { NextResponse } from "next/server"
+import { auth, clerkClient } from "@clerk/nextjs/server"
 import prismadb from "@/lib/prisma"
 
 export async function POST(req: Request) {
-  try {
-    const { userId: clerkId } = await auth()
+  const clerk = await clerkClient()
 
-    if (!clerkId) {
+  try {
+    const { userId: clerkUserId } = await auth()
+
+    if (!clerkUserId) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
     }
 
     const body = await req.json()
     const { userId, name, address, latitude, longitude, contact_info, description, pix_key, pix_key_type } = body
 
-    if (
-      !userId ||
-      !name ||
-      !address ||
-      !latitude ||
-      !longitude ||
-      !contact_info ||
-      !description ||
-      !pix_key ||
-      !pix_key_type
-    ) {
-      return NextResponse.json({ error: "Dados incompletos" }, { status: 400 })
-    }
-
-    // Verificar se o usuário existe
+    // Verificar se o usuário existe e se é o mesmo que está fazendo a requisição
     const user = await prismadb.user.findUnique({
-      where: { id: userId },
-      include: { salon: true },
+      where: {
+        id: userId,
+        clerk_id: clerkUserId,
+      },
+      include: {
+        salon: true,
+      },
     })
 
     if (!user) {
       return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 })
     }
 
-    // Verificar se o usuário já tem um salão cadastrado
+    // Verificar se já tem um salão cadastrado
     if (user.salon) {
       return NextResponse.json({ error: "Usuário já possui um estabelecimento cadastrado" }, { status: 400 })
     }
@@ -45,32 +38,31 @@ export async function POST(req: Request) {
     // Criar o salão
     const salon = await prismadb.salon.create({
       data: {
-        user_id: userId,
         name,
         address,
-        latitude,
-        longitude,
+        latitude: Number.parseFloat(latitude),
+        longitude: Number.parseFloat(longitude),
         contact_info,
         description,
         pix_key,
         pix_key_type,
         status: "PENDING",
+        user_id: userId,
       },
     })
 
-    // Atualizar o papel do usuário para PARTNER
-    await prismadb.user.update({
-      where: { id: userId },
-      data: { role: "PARTNER" },
-    })
+    console.log(`Salão criado: ${salon.id} para usuário ${userId}`)
 
     return NextResponse.json({
       success: true,
-      message: "Solicitação de parceria enviada com sucesso",
-      salon,
+      salon: {
+        id: salon.id,
+        name: salon.name,
+        status: salon.status,
+      },
     })
   } catch (error) {
     console.error("Erro ao registrar parceiro:", error)
-    return NextResponse.json({ error: "Erro ao processar a solicitação" }, { status: 500 })
+    return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
   }
 }

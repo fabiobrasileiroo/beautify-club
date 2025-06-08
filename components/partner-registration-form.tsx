@@ -10,8 +10,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
-import { toast } from "@/components/ui/use-toast"
+import { toast } from "@/hooks/use-toast"
 import { Loader2 } from "lucide-react"
+import { LocationPicker } from "@/components/location-picker"
 
 const formSchema = z.object({
   name: z.string().min(3, { message: "O nome deve ter pelo menos 3 caracteres" }),
@@ -46,18 +47,20 @@ export function PartnerRegistrationForm({ userId }: PartnerRegistrationFormProps
     },
   })
 
+  const handleLocationSelected = (latitude: number, longitude: number, source: string) => {
+    form.setValue("latitude", latitude)
+    form.setValue("longitude", longitude)
+
+    toast({
+      title: "Localização definida",
+      description: `Coordenadas obtidas via ${source === "gps" ? "GPS" : source === "ip" ? "IP" : "endereço"}`,
+    })
+  }
+
   async function onSubmit(data: PartnerFormValues) {
     setIsLoading(true)
 
     try {
-      // Tentar obter coordenadas do endereço usando uma API de geocodificação
-      // Isso seria implementado em um ambiente real
-      // Por enquanto, usamos valores fictícios
-      const coordinates = {
-        latitude: data.latitude || -23.5505,
-        longitude: data.longitude || -46.6333,
-      }
-
       const response = await fetch("/api/partner/register", {
         method: "POST",
         headers: {
@@ -67,8 +70,8 @@ export function PartnerRegistrationForm({ userId }: PartnerRegistrationFormProps
           userId,
           name: data.name,
           address: data.address,
-          latitude: coordinates.latitude,
-          longitude: coordinates.longitude,
+          latitude: data.latitude || null,
+          longitude: data.longitude || null,
           contact_info: data.contact_info,
           description: data.description,
           pix_key: data.pix_key,
@@ -87,8 +90,7 @@ export function PartnerRegistrationForm({ userId }: PartnerRegistrationFormProps
           "Sua solicitação foi enviada e está em análise. Você receberá uma notificação quando for aprovada.",
       })
 
-      // Redirecionar para a página de confirmação
-      router.push("/partner/register/confirmation")
+      // Redirecionar para a página de confirmação ou recarregar a página atual
       router.refresh()
     } catch (error) {
       console.error("Erro ao cadastrar parceiro:", error)
@@ -99,34 +101,6 @@ export function PartnerRegistrationForm({ userId }: PartnerRegistrationFormProps
       })
     } finally {
       setIsLoading(false)
-    }
-  }
-
-  function handleUseCurrentLocation() {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          form.setValue("latitude", position.coords.latitude)
-          form.setValue("longitude", position.coords.longitude)
-          toast({
-            title: "Localização obtida",
-            description: "Suas coordenadas foram capturadas com sucesso.",
-          })
-        },
-        (error) => {
-          toast({
-            title: "Erro ao obter localização",
-            description: "Não foi possível obter sua localização atual. Por favor, insira o endereço manualmente.",
-            variant: "destructive",
-          })
-        },
-      )
-    } else {
-      toast({
-        title: "Geolocalização não suportada",
-        description: "Seu navegador não suporta geolocalização. Por favor, insira o endereço manualmente.",
-        variant: "destructive",
-      })
     }
   }
 
@@ -152,45 +126,38 @@ export function PartnerRegistrationForm({ userId }: PartnerRegistrationFormProps
               )}
             />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <FormField
-                control={form.control}
-                name="address"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Endereço completo</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Ex: Rua Exemplo, 123 - Bairro, Cidade - UF" {...field} />
-                    </FormControl>
-                    <FormDescription>
-                      <Button
-                        type="button"
-                        variant="link"
-                        className="p-0 h-auto text-xs"
-                        onClick={handleUseCurrentLocation}
-                      >
-                        Usar minha localização atual
-                      </Button>
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <FormField
+              control={form.control}
+              name="address"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Endereço completo</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Ex: Rua Exemplo, 123 - Bairro, Cidade - UF" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-              <FormField
-                control={form.control}
-                name="contact_info"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Telefone de contato</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Ex: (11) 99999-9999" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <div className="bg-muted/50 p-4 rounded-md">
+              <h3 className="text-sm font-medium mb-2">Localização</h3>
+              <LocationPicker onLocationSelected={handleLocationSelected} />
             </div>
+
+            <FormField
+              control={form.control}
+              name="contact_info"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Telefone de contato</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Ex: (11) 99999-9999" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}
