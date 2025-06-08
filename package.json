@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "npm run generate:swagger && next build",
+    "generate:swagger": "next-swagger-doc-cli next-swagger-doc.json",
+    "build": "next build",
     "start": "next start",
     "lint": "next lint"
   },
