@@ -36,6 +36,14 @@ export async function POST(req: Request) {
     }
 
     // Criar o salão
+    const defaultWorkingDays = [
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday",
+      "friday",
+      "saturday"
+    ];
     const salon = await prismadb.salon.create({
       data: {
         name,
@@ -48,6 +56,7 @@ export async function POST(req: Request) {
         pix_key_type,
         status: "PENDING",
         user_id: userId,
+        working_days: defaultWorkingDays
       },
     })
 

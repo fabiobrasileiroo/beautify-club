@@ -1,9 +1,10 @@
 import { notFound } from "next/navigation"
 import Image from "next/image"
 import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { MapPin, Clock, Calendar, Phone, Star } from "lucide-react"
+import { MapPin, Clock, Phone, Star } from "lucide-react"
+import { BackButtonStack } from "@/components/back-button-stack"
+import { BookingCard } from "@/components/booking-card"
 
 import prismadb from "@/lib/prisma"
 
@@ -29,8 +30,15 @@ export default async function SalonPage({ params }: SalonPageProps) {
 
   return (
     <div className="space-y-8">
+      <BackButtonStack />
+
       <div className="h-64 md:h-96 relative rounded-lg overflow-hidden">
-        <Image src="/placeholder.svg?height=800&width=1600" alt={salon.name} fill className="object-cover" />
+        <Image
+          src={salon.image_url ?? "/placeholder.svg?height=400&width=600"}
+          alt={salon.name}
+          fill
+          className="object-cover"
+        />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
         <div className="absolute bottom-0 left-0 p-6 text-white">
           <h1 className="text-3xl md:text-4xl font-bold">{salon.name}</h1>
@@ -73,9 +81,6 @@ export default async function SalonPage({ params }: SalonPageProps) {
                       </div>
                       <div className="text-right">
                         <span className="text-xl font-bold">R${service.base_price.toFixed(2)}</span>
-                        <Button variant="accent" className="mt-4 text-white">
-                          Agendar
-                        </Button>
                       </div>
                     </div>
                   </CardContent>
@@ -86,11 +91,7 @@ export default async function SalonPage({ params }: SalonPageProps) {
               <h2 className="text-2xl font-bold mb-4">Sobre o salão</h2>
               <Card>
                 <CardContent className="p-6">
-                  <p className="text-muted-foreground mb-6">
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam euismod, nisl eget aliquam
-                    ultricies, nunc nisl aliquet nunc, quis aliquam nisl nunc quis nisl. Nullam euismod, nisl eget
-                    aliquam ultricies, nunc nisl aliquet nunc, quis aliquam nisl nunc quis nisl.
-                  </p>
+                  <p className="text-muted-foreground mb-6">{salon.description || "Sem descrição disponível."}</p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex items-center">
                       <Clock className="h-5 w-5 mr-3 text-accent" />
@@ -106,7 +107,6 @@ export default async function SalonPage({ params }: SalonPageProps) {
                       <div>
                         <h4 className="font-medium">Contato</h4>
                         <p className="text-sm text-muted-foreground">{salon.contact_info}</p>
-                        <p className="text-sm text-muted-foreground">contato@salao.com</p>
                       </div>
                     </div>
                   </div>
@@ -148,47 +148,7 @@ export default async function SalonPage({ params }: SalonPageProps) {
         </div>
 
         <div>
-          <Card className="sticky top-6">
-            <CardContent className="p-6">
-              <h2 className="text-xl font-bold mb-4">Agendar serviço</h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Selecione o serviço</label>
-                  <select className="w-full p-2 border rounded-md">
-                    {salon.services.map((service) => (
-                      <option key={service.id} value={service.id}>
-                        {service.name} - R${service.base_price.toFixed(2)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Selecione a data</label>
-                  <div className="flex items-center border rounded-md p-2">
-                    <Calendar className="h-5 w-5 mr-2 text-muted-foreground" />
-                    <input
-                      type="date"
-                      className="flex-1 bg-transparent outline-none"
-                      min={new Date().toISOString().split("T")[0]}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Selecione o horário</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {["09:00", "10:00", "11:00", "14:00", "15:00", "16:00"].map((time) => (
-                      <Button key={time} variant="outline" className="text-sm">
-                        {time}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-                <Button variant="accent" className="w-full text-white">
-                  Confirmar agendamento
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <BookingCard salon={salon} />
         </div>
       </div>
     </div>

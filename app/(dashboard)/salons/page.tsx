@@ -17,6 +17,7 @@ export default async function SalonsPage() {
       services: true,
     },
   })
+  console.log("🚀 ~ SalonsPage ~ salons:", salons)
 
   return (
     <div className="space-y-8">
@@ -34,7 +35,13 @@ export default async function SalonsPage() {
           salons.map((salon) => (
             <Card key={salon.id} className="overflow-hidden">
               <div className="h-48 bg-secondary relative">
-                <Image src="/placeholder.svg?height=400&width=600" alt={salon.name} fill className="object-cover" />
+                <Image
+                  src={salon.image_url ?? "/placeholder.svg?height=400&width=600"}
+                  alt={salon.name}
+                  fill
+                  className="object-cover"
+                />
+
               </div>
               <CardContent className="p-6">
                 <h3 className="text-xl font-bold mb-2">{salon.name}</h3>

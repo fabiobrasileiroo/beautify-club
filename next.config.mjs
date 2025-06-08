@@ -7,7 +7,8 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   images: {
-    unoptimized: true,
+    unoptimized: false, // Se quiser otimização automática (opcional)
+    domains: ['i.ibb.co'], // <- ADICIONE ESTE DOMÍNIO
   },
 }
 

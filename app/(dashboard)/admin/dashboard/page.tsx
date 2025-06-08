@@ -203,12 +203,14 @@ export default async function AdminDashboardPage() {
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm">
-                        Ver detalhes
-                      </Button>
-                      <Button variant="accent" size="sm" className="text-white">
+                      <Link href={"/admin/partners"}>
+                        <Button variant="outline" size="sm">
+                          Ver detalhes
+                        </Button>
+                      </Link>
+                      {/* <Button variant="accent" size="sm" className="text-white">
                         Aprovar
-                      </Button>
+                      </Button> */}
                     </div>
                   </div>
                 ))

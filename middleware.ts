@@ -4,7 +4,8 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server"
 const isPublicRoute = createRouteMatcher([
   "/",
   "/api/webhook",
-  "/api/mercadopago/webhook",
+  "/api/stripe/checkout",
+  "/api/stripe/webhook",
   // "/api/user/check-role", // ✅ Tornar API pública temporariamente
   // "/partner", 
   // "/partner/register", // ✅ Adicionar explicitamente

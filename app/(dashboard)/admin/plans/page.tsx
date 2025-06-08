@@ -26,12 +26,40 @@ export default async function AdminPlansPage() {
     redirect("/dashboard")
   }
 
-  // Buscar planos
+  // Buscar planos do banco de dados
   const plans = await prismadb.subscriptionPlan.findMany({
     orderBy: {
       price: "asc",
     },
   })
+
+  // Buscar estatísticas dos planos
+  const planStats = await Promise.all(
+    plans.map(async (plan) => {
+      const activeSubscriptions = await prismadb.subscription.count({
+        where: {
+          plan_id: plan.id,
+          status: "ACTIVE",
+        },
+      })
+
+      const totalSubscriptions = await prismadb.subscription.count({
+        where: {
+          plan_id: plan.id,
+        },
+      })
+
+      const monthlyRevenue = activeSubscriptions * plan.price
+
+      return {
+        planId: plan.id,
+        activeSubscriptions,
+        totalSubscriptions,
+        monthlyRevenue,
+        conversionRate: totalSubscriptions > 0 ? (activeSubscriptions / totalSubscriptions) * 100 : 0,
+      }
+    }),
+  )
 
   return (
     <div className="space-y-8">
@@ -41,7 +69,7 @@ export default async function AdminPlansPage() {
           <p className="text-muted-foreground">Configure os planos de assinatura disponíveis</p>
         </div>
         <Link href="/admin/plans/new">
-          <Button variant="accent" className="text-white">
+          <Button variant="default" className="bg-purple-600 hover:bg-purple-700 text-white">
             <Plus className="h-4 w-4 mr-2" />
             Adicionar plano
           </Button>
@@ -101,7 +129,7 @@ export default async function AdminPlansPage() {
                 <h3 className="text-xl font-medium mb-2">Nenhum plano cadastrado</h3>
                 <p className="text-muted-foreground mb-6">Adicione planos para que os clientes possam assinar.</p>
                 <Link href="/admin/plans/new">
-                  <Button variant="accent" className="text-white">
+                  <Button variant="default" className="bg-purple-600 hover:bg-purple-700 text-white">
                     <Plus className="h-4 w-4 mr-2" />
                     Adicionar plano
                   </Button>
@@ -112,38 +140,43 @@ export default async function AdminPlansPage() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Estatísticas de planos</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {plans.map((plan) => (
-              <div key={plan.id} className="bg-secondary rounded-lg p-6">
-                <h3 className="font-bold text-lg mb-2">{plan.name}</h3>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Assinantes ativos:</span>
-                    <span className="font-medium">247</span>
+      {plans.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Estatísticas de planos</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {plans.map((plan) => {
+                const stats = planStats.find((s) => s.planId === plan.id)
+                return (
+                  <div key={plan.id} className="bg-secondary rounded-lg p-6">
+                    <h3 className="font-bold text-lg mb-2">{plan.name}</h3>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Assinantes ativos:</span>
+                        <span className="font-medium">{stats?.activeSubscriptions || 0}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Receita mensal:</span>
+                        <span className="font-medium">R${(stats?.monthlyRevenue || 0).toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Taxa de conversão:</span>
+                        <span className="font-medium">{(stats?.conversionRate || 0).toFixed(1)}%</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Total de assinaturas:</span>
+                        <span className="font-medium">{stats?.totalSubscriptions || 0}</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Receita mensal:</span>
-                    <span className="font-medium">R${(plan.price * 247).toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Taxa de conversão:</span>
-                    <span className="font-medium">12.5%</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Taxa de churn:</span>
-                    <span className="font-medium">3.2%</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+                )
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

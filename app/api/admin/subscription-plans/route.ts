@@ -131,7 +131,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<SuccessRespon
     return NextResponse.json(
       { 
         error: "Erro interno do servidor",
-        details: process.env.NODE_ENV === 'development' 
+        details: process.env.NODE_ENV === 'development' || 'production' 
           ? [error instanceof Error ? error.message : 'Erro desconhecido']
           : undefined
       }, 

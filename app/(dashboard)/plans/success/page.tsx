@@ -1,14 +1,20 @@
-"use server"
 import { redirect } from "next/navigation"
 import { auth } from "@clerk/nextjs/server"
+import SuccessClient from "./success-client"
 import prismadb from "@/lib/prisma"
-import PlansClient from "./plans-client"
 
-export default async function PlansPage() {
+interface SuccessPageProps {
+  searchParams: {
+    session_id?: string
+  }
+}
+
+export default async function SuccessPage({ searchParams }: SuccessPageProps) {
   const { userId } = await auth()
+  const sessionId = searchParams.session_id
 
-  if (!userId) {
-    redirect("/sign-in")
+  if (!userId || !sessionId) {
+    redirect("/plans")
   }
 
   // Buscar usuário do banco de dados
@@ -32,24 +38,11 @@ export default async function PlansPage() {
     },
   })
 
-  if (!user) {
-    redirect("/sign-in")
+  if (!user || user.subscriptions.length === 0) {
+    redirect("/plans")
   }
 
-  // Buscar planos disponíveis
-  const plans = await prismadb.subscriptionPlan.findMany({
-    orderBy: {
-      price: "asc",
-    },
-  })
+  const subscription = user.subscriptions[0]
 
-  const activeSubscription = user.subscriptions[0]
-
-  return (
-    <PlansClient
-      plans={plans}
-      activeSubscription={activeSubscription}
-      isSignedIn={true}
-    />
-  )
+  return <SuccessClient subscription={subscription} />
 }

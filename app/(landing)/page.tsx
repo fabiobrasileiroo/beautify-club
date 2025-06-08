@@ -48,7 +48,7 @@ export default function LandingPage() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         {/* <div className="animate-pulse text-primary text-2xl">Carregando...</div> */}
-        <Lottie width={20} height={20}  animationData={salonLoading} loop={true} />
+          <Lottie width={20} height={20}  animationData={salonLoading} loop={true} />
       </div>
     )
   }

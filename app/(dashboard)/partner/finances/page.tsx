@@ -1,38 +1,80 @@
-import { auth, currentUser } from "@clerk/nextjs/server"
+import { auth } from "@clerk/nextjs/server"
 import { redirect } from "next/navigation"
+import { format, subMonths, startOfMonth, endOfMonth } from "date-fns"
+import { ptBR } from "date-fns/locale"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Calendar, DollarSign, Download } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { ArrowUpRight, ArrowDownRight, DollarSign, Calendar, CheckCircle } from "lucide-react"
 
 import prismadb from "@/lib/prisma"
 
 export default async function PartnerFinancesPage() {
   const { userId } = await auth()
-  const user = await currentUser()
 
-  if (!userId || !user) {
+  if (!userId) {
     redirect("/sign-in")
   }
 
-  // Verificar se o usuário é um parceiro
-  const dbUser = await prismadb.user.findUnique({
+  // Buscar usuário e salão do parceiro
+  const user = await prismadb.user.findFirst({
     where: {
       clerk_id: userId,
+      role: "PARTNER",
     },
     include: {
       salon: true,
     },
   })
 
-  if (!dbUser || dbUser.role !== "PARTNER" || !dbUser.salon) {
+  if (!user || !user.salon) {
     redirect("/partner/register")
   }
 
-  // Buscar comissões do salão
-  const commissions = await prismadb.commission.findMany({
+  const salon = user.salon
+
+  // Datas para filtrar
+  const currentDate = new Date()
+  const currentMonthStart = startOfMonth(currentDate)
+  const currentMonthEnd = endOfMonth(currentDate)
+  const lastMonthStart = startOfMonth(subMonths(currentDate, 1))
+  const lastMonthEnd = endOfMonth(subMonths(currentDate, 1))
+
+  // Buscar agendamentos e comissões
+  const currentMonthAppointments = await prismadb.appointment.findMany({
     where: {
-      salon_id: dbUser.salon.id,
+      salon_id: salon.id,
+      scheduled_at: {
+        gte: currentMonthStart,
+        lte: currentMonthEnd,
+      },
+    },
+    include: {
+      service: true,
+      commission: true,
+    },
+  })
+
+  const lastMonthAppointments = await prismadb.appointment.findMany({
+    where: {
+      salon_id: salon.id,
+      scheduled_at: {
+        gte: lastMonthStart,
+        lte: lastMonthEnd,
+      },
+    },
+    include: {
+      service: true,
+      commission: true,
+    },
+  })
+
+  // Buscar comissões pendentes
+  const pendingCommissions = await prismadb.commission.findMany({
+    where: {
+      salon_id: salon.id,
+      paid_flag: false,
     },
     include: {
       appointment: {
@@ -45,253 +87,251 @@ export default async function PartnerFinancesPage() {
     orderBy: {
       created_at: "desc",
     },
+  })
+
+  // Buscar comissões pagas
+  const paidCommissions = await prismadb.commission.findMany({
+    where: {
+      salon_id: salon.id,
+      paid_flag: true,
+    },
+    include: {
+      appointment: {
+        include: {
+          service: true,
+          user: true,
+        },
+      },
+    },
+    orderBy: {
+      paid_at: "desc",
+    },
     take: 10,
   })
 
-  // Calcular estatísticas financeiras
-  const today = new Date()
-  const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
-  const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+  // Calcular estatísticas
+  const currentMonthRevenue = currentMonthAppointments
+    .filter((appointment) => appointment.status === "COMPLETED")
+    .reduce((sum, appointment) => sum + appointment.price_charged, 0)
 
-  // Calcular total de comissões do mês
-  const monthlyCommissions = await prismadb.commission.aggregate({
-    where: {
-      salon_id: dbUser.salon.id,
-      created_at: {
-        gte: startOfMonth,
-        lte: endOfMonth,
-      },
-    },
-    _sum: {
-      amount: true,
-    },
-  })
+  const lastMonthRevenue = lastMonthAppointments
+    .filter((appointment) => appointment.status === "COMPLETED")
+    .reduce((sum, appointment) => sum + appointment.price_charged, 0)
 
-  // Calcular total de comissões pendentes
-  const pendingCommissions = await prismadb.commission.aggregate({
-    where: {
-      salon_id: dbUser.salon.id,
-      paid_flag: false,
-    },
-    _sum: {
-      amount: true,
-    },
-  })
+  const currentMonthCommissions = currentMonthAppointments
+    .filter((appointment) => appointment.status === "COMPLETED" && appointment.commission)
+    .reduce((sum, appointment) => sum + (appointment.commission?.amount || 0), 0)
 
-  // Calcular total de comissões pagas
-  const paidCommissions = await prismadb.commission.aggregate({
-    where: {
-      salon_id: dbUser.salon.id,
-      paid_flag: true,
-    },
-    _sum: {
-      amount: true,
-    },
-  })
+  const lastMonthCommissions = lastMonthAppointments
+    .filter((appointment) => appointment.status === "COMPLETED" && appointment.commission)
+    .reduce((sum, appointment) => sum + (appointment.commission?.amount || 0), 0)
+
+  const totalPendingCommissions = pendingCommissions.reduce((sum, commission) => sum + commission.amount, 0)
+
+  const revenueChange = lastMonthRevenue > 0 ? ((currentMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100 : 100
+
+  const commissionsChange =
+    lastMonthCommissions > 0 ? ((currentMonthCommissions - lastMonthCommissions) / lastMonthCommissions) * 100 : 100
+
+  const formatDate = (date: Date) => {
+    return format(new Date(date), "dd/MM/yyyy", { locale: ptBR })
+  }
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Finanças</h1>
-          <p className="text-muted-foreground">Gerencie suas comissões e pagamentos</p>
-        </div>
-        <div className="flex gap-4">
-          <Button variant="outline">
-            <Download className="h-4 w-4 mr-2" />
-            Exportar relatório
-          </Button>
-          <Button variant="accent" className="text-white">
-            Solicitar saque
-          </Button>
-        </div>
+      <div>
+        <h1 className="text-3xl font-bold text-foreground">Finanças</h1>
+        <p className="text-muted-foreground">Gerencie as finanças do seu salão</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Comissões do mês</CardTitle>
-            <CardDescription>Total de {new Date().toLocaleString("pt-BR", { month: "long" })}</CardDescription>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Receita (Mês Atual)</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center">
-              <DollarSign className="h-5 w-5 text-muted-foreground mr-2" />
-              <span className="text-2xl font-bold">R${monthlyCommissions._sum.amount?.toFixed(2) || "0.00"}</span>
+            <div className="flex items-center justify-between">
+              <div className="text-2xl font-bold">R$ {currentMonthRevenue.toFixed(2)}</div>
+              <div className={`flex items-center ${revenueChange >= 0 ? "text-green-500" : "text-red-500"}`}>
+                {revenueChange >= 0 ? (
+                  <ArrowUpRight className="h-4 w-4 mr-1" />
+                ) : (
+                  <ArrowDownRight className="h-4 w-4 mr-1" />
+                )}
+                <span>{Math.abs(revenueChange).toFixed(1)}%</span>
+              </div>
             </div>
+            <p className="text-xs text-muted-foreground mt-1">Comparado ao mês anterior</p>
           </CardContent>
         </Card>
+
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Disponível para saque</CardTitle>
-            <CardDescription>Comissões pendentes</CardDescription>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Comissões (Mês Atual)</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center">
-              <DollarSign className="h-5 w-5 text-muted-foreground mr-2" />
-              <span className="text-2xl font-bold">R${pendingCommissions._sum.amount?.toFixed(2) || "0.00"}</span>
+            <div className="flex items-center justify-between">
+              <div className="text-2xl font-bold">R$ {currentMonthCommissions.toFixed(2)}</div>
+              <div className={`flex items-center ${commissionsChange >= 0 ? "text-green-500" : "text-red-500"}`}>
+                {commissionsChange >= 0 ? (
+                  <ArrowUpRight className="h-4 w-4 mr-1" />
+                ) : (
+                  <ArrowDownRight className="h-4 w-4 mr-1" />
+                )}
+                <span>{Math.abs(commissionsChange).toFixed(1)}%</span>
+              </div>
             </div>
+            <p className="text-xs text-muted-foreground mt-1">Comparado ao mês anterior</p>
           </CardContent>
         </Card>
+
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total recebido</CardTitle>
-            <CardDescription>Comissões já pagas</CardDescription>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Comissões Pendentes</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center">
-              <DollarSign className="h-5 w-5 text-muted-foreground mr-2" />
-              <span className="text-2xl font-bold">R${paidCommissions._sum.amount?.toFixed(2) || "0.00"}</span>
+            <div className="text-2xl font-bold">R$ {totalPendingCommissions.toFixed(2)}</div>
+            <p className="text-xs text-muted-foreground mt-1">{pendingCommissions.length} pagamentos pendentes</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Taxa de Conclusão</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {currentMonthAppointments.length > 0
+                ? Math.round(
+                    (currentMonthAppointments.filter((a) => a.status === "COMPLETED").length /
+                      currentMonthAppointments.length) *
+                      100,
+                  )
+                : 0}
+              %
             </div>
+            <p className="text-xs text-muted-foreground mt-1">Agendamentos concluídos vs. total</p>
           </CardContent>
         </Card>
       </div>
+
+      <Tabs defaultValue="pending" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="pending">Comissões Pendentes ({pendingCommissions.length})</TabsTrigger>
+          <TabsTrigger value="paid">Comissões Pagas ({paidCommissions.length})</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="pending" className="space-y-4">
+          {pendingCommissions.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-10">
+                <CheckCircle className="h-10 w-10 text-muted-foreground mb-2" />
+                <h3 className="text-lg font-medium">Nenhuma comissão pendente</h3>
+                <p className="text-muted-foreground text-center mt-1">Todas as suas comissões foram pagas.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>Comissões Pendentes</CardTitle>
+                <CardDescription>Comissões que ainda não foram pagas pela plataforma</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {pendingCommissions.map((commission) => (
+                    <div
+                      key={commission.id}
+                      className="flex flex-col md:flex-row justify-between p-4 border rounded-lg"
+                    >
+                      <div>
+                        <div className="font-medium">{commission.appointment.service.name}</div>
+                        <div className="text-sm text-muted-foreground">Cliente: {commission.appointment.user.name}</div>
+                        <div className="text-sm text-muted-foreground flex items-center">
+                          <Calendar className="h-3 w-3 mr-1" />
+                          <span>{formatDate(commission.appointment.scheduled_at)}</span>
+                        </div>
+                      </div>
+                      <div className="mt-2 md:mt-0 text-right">
+                        <div className="font-medium">R$ {commission.amount.toFixed(2)}</div>
+                        <Badge variant="outline" className="mt-1">
+                          Pendente
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="paid" className="space-y-4">
+          {paidCommissions.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-10">
+                <DollarSign className="h-10 w-10 text-muted-foreground mb-2" />
+                <h3 className="text-lg font-medium">Nenhuma comissão paga</h3>
+                <p className="text-muted-foreground text-center mt-1">Você ainda não recebeu nenhuma comissão.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>Comissões Pagas</CardTitle>
+                <CardDescription>Últimas comissões pagas pela plataforma</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {paidCommissions.map((commission) => (
+                    <div
+                      key={commission.id}
+                      className="flex flex-col md:flex-row justify-between p-4 border rounded-lg"
+                    >
+                      <div>
+                        <div className="font-medium">{commission.appointment.service.name}</div>
+                        <div className="text-sm text-muted-foreground">Cliente: {commission.appointment.user.name}</div>
+                        <div className="text-sm text-muted-foreground flex items-center">
+                          <Calendar className="h-3 w-3 mr-1" />
+                          <span>{formatDate(commission.appointment.scheduled_at)}</span>
+                        </div>
+                      </div>
+                      <div className="mt-2 md:mt-0 text-right">
+                        <div className="font-medium">R$ {commission.amount.toFixed(2)}</div>
+                        <div className="text-xs text-muted-foreground">
+                          Pago em {commission.paid_at ? formatDate(commission.paid_at) : "N/A"}
+                        </div>
+                        <Badge variant="success" className="mt-1">
+                          Pago
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
 
       <Card>
         <CardHeader>
-          <CardTitle>Informações de pagamento</CardTitle>
-          <CardDescription>Seus dados para recebimento de comissões</CardDescription>
+          <CardTitle>Configurações de Pagamento</CardTitle>
+          <CardDescription>Configure suas informações de pagamento para receber comissões</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <h3 className="font-medium mb-2">Chave PIX</h3>
-                <div className="bg-secondary p-4 rounded-lg">
-                  <p>
-                    <strong>Tipo:</strong> {dbUser.salon.pix_key_type || "Não configurado"}
+            <div>
+              <h3 className="font-medium mb-2">Chave PIX</h3>
+              <div className="flex items-center gap-4">
+                <div className="flex-1">
+                  <p className="text-muted-foreground">
+                    {salon.pix_key ? salon.pix_key : "Nenhuma chave PIX cadastrada"}
                   </p>
-                  <p>
-                    <strong>Chave:</strong> {dbUser.salon.pix_key || "Não configurada"}
-                  </p>
+                  {salon.pix_key_type && <p className="text-xs text-muted-foreground">Tipo: {salon.pix_key_type}</p>}
                 </div>
-              </div>
-              <div>
-                <h3 className="font-medium mb-2">Política de pagamentos</h3>
-                <p className="text-sm text-muted-foreground">
-                  Os pagamentos são processados automaticamente todo dia 15 de cada mês para valores acima de R$50,00.
-                  Você também pode solicitar saques manuais a qualquer momento para valores acima de R$20,00.
-                </p>
+                <Button variant="outline">{salon.pix_key ? "Atualizar" : "Adicionar"}</Button>
               </div>
             </div>
-            <div className="flex justify-end">
-              <Button variant="outline">Atualizar dados de pagamento</Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Histórico de comissões</CardTitle>
-          <CardDescription>Últimas comissões recebidas</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="all">
-            <TabsList className="mb-4">
-              <TabsTrigger value="all">Todas</TabsTrigger>
-              <TabsTrigger value="pending">Pendentes</TabsTrigger>
-              <TabsTrigger value="paid">Pagas</TabsTrigger>
-            </TabsList>
-            <TabsContent value="all">
-              <div className="space-y-4">
-                {commissions.length > 0 ? (
-                  commissions.map((commission) => (
-                    <div
-                      key={commission.id}
-                      className="flex justify-between items-center border-b pb-4 last:border-0 last:pb-0"
-                    >
-                      <div>
-                        <p className="font-medium">{commission.appointment.service.name}</p>
-                        <div className="flex items-center text-sm text-muted-foreground">
-                          <Calendar className="h-3 w-3 mr-1" />
-                          <span>{new Date(commission.created_at).toLocaleDateString("pt-BR")}</span>
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          <span>Cliente: {commission.appointment.user.name}</span>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold">R${commission.amount.toFixed(2)}</p>
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs ${
-                            commission.paid_flag ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
-                          }`}
-                        >
-                          {commission.paid_flag ? "Pago" : "Pendente"}
-                        </span>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-muted-foreground">Nenhuma comissão registrada.</p>
-                )}
-              </div>
-            </TabsContent>
-            <TabsContent value="pending">
-              <div className="space-y-4">
-                {commissions.filter((c) => !c.paid_flag).length > 0 ? (
-                  commissions
-                    .filter((c) => !c.paid_flag)
-                    .map((commission) => (
-                      <div
-                        key={commission.id}
-                        className="flex justify-between items-center border-b pb-4 last:border-0 last:pb-0"
-                      >
-                        <div>
-                          <p className="font-medium">{commission.appointment.service.name}</p>
-                          <div className="flex items-center text-sm text-muted-foreground">
-                            <Calendar className="h-3 w-3 mr-1" />
-                            <span>{new Date(commission.created_at).toLocaleDateString("pt-BR")}</span>
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            <span>Cliente: {commission.appointment.user.name}</span>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-bold">R${commission.amount.toFixed(2)}</p>
-                          <span className="px-2 py-1 rounded-full text-xs bg-yellow-100 text-yellow-800">Pendente</span>
-                        </div>
-                      </div>
-                    ))
-                ) : (
-                  <p className="text-muted-foreground">Nenhuma comissão pendente.</p>
-                )}
-              </div>
-            </TabsContent>
-            <TabsContent value="paid">
-              <div className="space-y-4">
-                {commissions.filter((c) => c.paid_flag).length > 0 ? (
-                  commissions
-                    .filter((c) => c.paid_flag)
-                    .map((commission) => (
-                      <div
-                        key={commission.id}
-                        className="flex justify-between items-center border-b pb-4 last:border-0 last:pb-0"
-                      >
-                        <div>
-                          <p className="font-medium">{commission.appointment.service.name}</p>
-                          <div className="flex items-center text-sm text-muted-foreground">
-                            <Calendar className="h-3 w-3 mr-1" />
-                            <span>{new Date(commission.created_at).toLocaleDateString("pt-BR")}</span>
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            <span>Cliente: {commission.appointment.user.name}</span>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-bold">R${commission.amount.toFixed(2)}</p>
-                          <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">Pago</span>
-                        </div>
-                      </div>
-                    ))
-                ) : (
-                  <p className="text-muted-foreground">Nenhuma comissão paga.</p>
-                )}
-              </div>
-            </TabsContent>
-          </Tabs>
-          <div className="mt-6 flex justify-center">
-            <Button variant="outline">Ver todas as comissões</Button>
           </div>
         </CardContent>
       </Card>
