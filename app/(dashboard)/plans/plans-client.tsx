@@ -4,8 +4,20 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Check, Loader2 } from "lucide-react"
+import { Check, Loader2, AlertTriangle } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
+import { useSubscription } from "@/hooks/use-subscription"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 interface Plan {
   id: string
@@ -21,6 +33,7 @@ interface ActiveSubscription {
   id: string
   plan_id: string
   end_date: Date
+  status: string
   plan: Plan
 }
 
@@ -33,6 +46,7 @@ interface PlansClientProps {
 export default function PlansClient({ plans, activeSubscription, isSignedIn }: PlansClientProps) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState<string | null>(null)
+  const { cancelSubscription, isCanceling } = useSubscription()
 
   const handleSubscribe = async (planId: string) => {
     if (!isSignedIn) {
@@ -75,9 +89,13 @@ export default function PlansClient({ plans, activeSubscription, isSignedIn }: P
     }
   }
 
-  // Determinar qual plano é popular (pode ser baseado em lógica de negócio)
+  const handleCancelSubscription = async () => {
+    if (!activeSubscription) return
+    await cancelSubscription(activeSubscription.id)
+  }
+
+  // Determinar qual plano é popular
   const getPopularPlan = () => {
-    // Por exemplo, o plano do meio ou o mais vendido
     if (plans.length >= 2) {
       return plans[Math.floor(plans.length / 2)].id
     }
@@ -85,6 +103,9 @@ export default function PlansClient({ plans, activeSubscription, isSignedIn }: P
   }
 
   const popularPlanId = getPopularPlan()
+
+  // Verificar se a assinatura está cancelada mas ainda ativa
+  const isSubscriptionCanceled = activeSubscription?.status === "CANCELED"
 
   return (
     <div className="space-y-8">
@@ -94,16 +115,69 @@ export default function PlansClient({ plans, activeSubscription, isSignedIn }: P
       </div>
 
       {activeSubscription && (
-        <Card className="bg-secondary">
+        <Card className={`${isSubscriptionCanceled ? "bg-orange-50 border-orange-200" : "bg-secondary"}`}>
           <CardContent className="p-6">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <div>
-                <h2 className="text-xl font-bold">Seu plano atual: {activeSubscription.plan.name}</h2>
+                <h2 className="text-xl font-bold flex items-center">
+                  Seu plano atual: {activeSubscription.plan.name}
+                  {isSubscriptionCanceled && (
+                    <span className="ml-2 px-2 py-1 text-xs bg-orange-100 text-orange-800 rounded-full">
+                      Cancelado
+                    </span>
+                  )}
+                </h2>
                 <p className="text-muted-foreground">
-                  Próxima cobrança em {new Date(activeSubscription.end_date).toLocaleDateString("pt-BR")}
+                  {isSubscriptionCanceled 
+                    ? `Acesso disponível até ${new Date(activeSubscription.end_date).toLocaleDateString("pt-BR")}`
+                    : `Próxima cobrança em ${new Date(activeSubscription.end_date).toLocaleDateString("pt-BR")}`
+                  }
                 </p>
               </div>
-              <Button variant="outline">Cancelar assinatura</Button>
+
+              {!isSubscriptionCanceled && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline" disabled={isCanceling}>
+                      {isCanceling ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Cancelando...
+                        </>
+                      ) : (
+                        "Cancelar assinatura"
+                      )}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle className="flex items-center">
+                        <AlertTriangle className="mr-2 h-5 w-5 text-destructive" />
+                        Cancelar Assinatura
+                      </AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Tem certeza que deseja cancelar sua assinatura do plano <strong>{activeSubscription.plan.name}</strong>?
+                        <br /><br />
+                        <strong>Importante:</strong> Após o cancelamento:
+                        <ul className="list-disc list-inside mt-2 space-y-1">
+                          <li>Você continuará tendo acesso aos serviços até {new Date(activeSubscription.end_date).toLocaleDateString("pt-BR")}</li>
+                          <li>Não haverá cobrança na renovação automática</li>
+                          <li>Você pode reativar sua assinatura a qualquer momento</li>
+                        </ul>
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Manter assinatura</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleCancelSubscription}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Sim, cancelar assinatura
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -121,7 +195,7 @@ export default function PlansClient({ plans, activeSubscription, isSignedIn }: P
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {plans.map((plan) => {
-            const isActive = activeSubscription?.plan_id === plan.id
+            const isActive = activeSubscription?.plan_id === plan.id && !isSubscriptionCanceled
             const isPopular = plan.id === popularPlanId
             const features = plan.features.split("\n").filter((feature) => feature.trim() !== "")
 
@@ -178,7 +252,7 @@ export default function PlansClient({ plans, activeSubscription, isSignedIn }: P
                           Processando...
                         </>
                       ) : activeSubscription ? (
-                        "Mudar para este plano"
+                        isSubscriptionCanceled ? "Reativar com este plano" : "Mudar para este plano"
                       ) : (
                         "Assinar agora"
                       )}
@@ -220,8 +294,22 @@ export default function PlansClient({ plans, activeSubscription, isSignedIn }: P
             <div>
               <h3 className="font-bold mb-2">Como cancelar minha assinatura?</h3>
               <p className="text-muted-foreground">
-                Você pode cancelar sua assinatura a qualquer momento através da sua conta. O acesso aos serviços
-                continuará disponível até o final do período pago.
+                Você pode cancelar sua assinatura a qualquer momento através do botão "Cancelar assinatura" na seção do seu plano atual. 
+                O acesso aos serviços continuará disponível até o final do período pago.
+              </p>
+            </div>
+            <div>
+              <h3 className="font-bold mb-2">O que acontece após o cancelamento?</h3>
+              <p className="text-muted-foreground">
+                Após cancelar, você continuará tendo acesso aos serviços até o final do período já pago. 
+                Não haverá renovação automática e você pode reativar sua assinatura a qualquer momento escolhendo um novo plano.
+              </p>
+            </div>
+            <div>
+              <h3 className="font-bold mb-2">Posso reativar minha assinatura?</h3>
+              <p className="text-muted-foreground">
+                Sim! Mesmo após cancelar, você pode reativar sua assinatura a qualquer momento escolhendo um dos planos disponíveis. 
+                A reativação é instantânea após a confirmação do pagamento.
               </p>
             </div>
           </div>

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Calendar, Clock, MapPin, Scissors, UserPlus } from "lucide-react"
+import Image from "next/image" 
 
 interface DashboardClientProps {
   user: any
@@ -103,14 +104,13 @@ export function DashboardClient({
                     <div
                       className="h-full bg-primary"
                       style={{
-                        width: `${
-                          activeSubscription.plan.max_services_per_month
+                        width: `${activeSubscription.plan.max_services_per_month
                             ? Math.min(
-                                100,
-                                (appointmentsThisMonth / activeSubscription.plan.max_services_per_month) * 100,
-                              )
+                              100,
+                              (appointmentsThisMonth / activeSubscription.plan.max_services_per_month) * 100,
+                            )
                             : 0
-                        }%`,
+                          }%`,
                       }}
                     />
                   </div>
@@ -191,7 +191,14 @@ export function DashboardClient({
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {recommendedSalons.map((salon) => (
                 <div key={salon.id} className="border rounded-lg overflow-hidden">
-                  <div className="h-40 bg-secondary" />
+                  <div className="relative h-40 w-full">
+                    <Image
+                      src={salon.image_url ?? "/placeholder.svg?height=400&width=600"}
+                      alt={salon.name}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
                   <div className="p-4">
                     <h3 className="font-medium">{salon.name}</h3>
                     <div className="flex items-center text-sm text-muted-foreground mt-1">
@@ -252,7 +259,7 @@ export function DashboardClient({
             </ul>
           </div>
           <div className="md:w-1/3 flex justify-center">
-            <Link href="/partner/register">
+            <Link href="/register">
               <Button variant="default" size="lg" className="font-medium">
                 <UserPlus className="mr-2 h-5 w-5" />
                 Cadastrar meu estabelecimento
