@@ -11,7 +11,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 export async function POST(req: Request) {
   try {
     const { userId } = await auth()
-
+    console.log('entrou aqui')
     if (!userId) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
     }
@@ -68,7 +68,7 @@ export async function POST(req: Request) {
       mode: "subscription",
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}/plans/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/plans`,
-      payment_method_types: ["card", "boleto"],
+      payment_method_types: ["card", "boleto"],//"pix","paypal","amazon_pay","bancontact","paynow"],
       billing_address_collection: "required",
       customer_email: user.email,
       locale: "pt-BR",

@@ -47,8 +47,10 @@ export default function LandingPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        {/* <div className="animate-pulse text-primary text-2xl">Carregando...</div> */}
-          <Lottie width={20} height={20}  animationData={salonLoading} loop={true} />
+        <div className="w-24 h-24 sm:w-20 sm:h-20 md:w-32 md:h-32">
+          <Lottie animationData={salonLoading} loop={true} />
+          Carregando...
+        </div>
       </div>
     )
   }
