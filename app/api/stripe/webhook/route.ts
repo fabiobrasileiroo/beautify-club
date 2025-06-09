@@ -28,7 +28,6 @@ export async function POST(req: Request) {
 
     // Processar eventos relevantes
     if (event.type === "checkout.session.completed") {
-      // Extrair metadados
       const userId = session.metadata?.userId
       const planId = session.metadata?.planId
 
@@ -37,12 +36,11 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Metadados ausentes" }, { status: 400 })
       }
 
-      // Criar assinatura no banco de dados
       const startDate = new Date()
       const endDate = new Date()
-      endDate.setMonth(endDate.getMonth() + 1) // Assinatura mensal
+      endDate.setMonth(endDate.getMonth() + 1)
 
-      await prismadb.subscription.create({
+      const subscription = await prismadb.subscription.create({
         data: {
           user_id: userId,
           plan_id: planId,
@@ -52,11 +50,10 @@ export async function POST(req: Request) {
         },
       })
 
-      // Registrar pagamento
       await prismadb.payment.create({
         data: {
-          subscription_id: planId,
-          amount: session.amount_total! / 100, // Converter de centavos para reais
+          subscription_id: subscription.id, // <- agora está certo
+          amount: session.amount_total! / 100,
           paid_at: new Date(),
           method: "stripe",
           status: "COMPLETED",

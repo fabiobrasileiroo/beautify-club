@@ -11,7 +11,7 @@ const inter = Inter({ subsets: ["latin"] })
 export const metadata = {
   title: "Beautify Club",
   description: "Plataforma de assinaturas para salões de beleza e barbearias",
-    generator: 'v0.dev'
+    generator: 'fabio'
 }
 
 export default function RootLayout({
