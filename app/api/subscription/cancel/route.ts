@@ -1,9 +1,12 @@
-// app/api/subscription/cancel/route.ts
-import { NextRequest, NextResponse } from "next/server"
+import { type NextRequest, NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import { PrismaClient } from "@prisma/client"
+import Stripe from "stripe"
 
 const prisma = new PrismaClient()
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: "2025-05-28.basil",
+})
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,7 +25,7 @@ export async function POST(request: NextRequest) {
 
     // Buscar o usuário no banco de dados
     const user = await prisma.user.findUnique({
-      where: { clerk_id: userId }
+      where: { clerk_id: userId },
     })
 
     if (!user) {
@@ -34,40 +37,76 @@ export async function POST(request: NextRequest) {
       where: {
         id: subscriptionId,
         user_id: user.id,
-        status: "ACTIVE"
+        status: "ACTIVE",
       },
       include: {
-        plan: true
-      }
+        plan: true,
+      },
     })
 
     if (!subscription) {
-      return NextResponse.json({ 
-        error: "Assinatura não encontrada ou já foi cancelada" 
-      }, { status: 404 })
+      return NextResponse.json(
+        {
+          error: "Assinatura não encontrada ou já foi cancelada",
+        },
+        { status: 404 },
+      )
     }
 
     // Verificar se a assinatura ainda está dentro do período ativo
     const now = new Date()
     if (subscription.end_date < now) {
-      return NextResponse.json({ 
-        error: "Esta assinatura já expirou" 
-      }, { status: 400 })
+      return NextResponse.json(
+        {
+          error: "Esta assinatura já expirou",
+        },
+        { status: 400 },
+      )
     }
 
-    // Atualizar o status da assinatura para CANCELED
+    try {
+      // Buscar customer no Stripe pelo email do usuário
+      const customers = await stripe.customers.list({
+        email: user.email,
+        limit: 1,
+      })
+
+      if (customers.data.length > 0) {
+        const customer = customers.data[0]
+
+        // Buscar assinaturas ativas do customer
+        const stripeSubscriptions = await stripe.subscriptions.list({
+          customer: customer.id,
+          status: "active",
+          limit: 10,
+        })
+
+        // Cancelar assinatura no Stripe (no final do período)
+        for (const stripeSub of stripeSubscriptions.data) {
+          await stripe.subscriptions.update(stripeSub.id, {
+            cancel_at_period_end: true,
+          })
+          console.log(`Assinatura Stripe ${stripeSub.id} marcada para cancelamento no final do período`)
+        }
+      }
+    } catch (stripeError) {
+      console.error("Erro ao cancelar no Stripe:", stripeError)
+      // Continuar com o cancelamento local mesmo se houver erro no Stripe
+    }
+
+    // Atualizar o status da assinatura para CANCELED no banco local
     const updatedSubscription = await prisma.subscription.update({
       where: { id: subscriptionId },
       data: {
         status: "CANCELED",
-        updated_at: new Date()
+        updated_at: new Date(),
       },
       include: {
-        plan: true
-      }
+        plan: true,
+      },
     })
 
-    // Log da ação (opcional - você pode remover se não precisar)
+    // Log da ação
     console.log(`Assinatura cancelada: ${subscriptionId} - Usuário: ${user.email} - Plano: ${subscription.plan.name}`)
 
     return NextResponse.json({
@@ -76,16 +115,12 @@ export async function POST(request: NextRequest) {
         id: updatedSubscription.id,
         status: updatedSubscription.status,
         end_date: updatedSubscription.end_date,
-        plan_name: updatedSubscription.plan.name
-      }
+        plan_name: updatedSubscription.plan.name,
+      },
     })
-
   } catch (error) {
     console.error("Erro ao cancelar assinatura:", error)
-    return NextResponse.json(
-      { error: "Erro interno do servidor" },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
   } finally {
     await prisma.$disconnect()
   }

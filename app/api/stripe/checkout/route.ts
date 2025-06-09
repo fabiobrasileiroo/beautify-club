@@ -1,59 +1,96 @@
-import { NextResponse } from "next/server"
+import { type NextRequest, NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import Stripe from "stripe"
-
 import prismadb from "@/lib/prisma"
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-05-28.basil",
 })
 
-export async function POST(req: Request) {
+export async function POST(request: NextRequest) {
   try {
     const { userId } = await auth()
-    console.log('entrou aqui')
     if (!userId) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
+      return NextResponse.json({ error: "Usuário não autenticado" }, { status: 401 })
     }
 
-    const body = await req.json()
-    const { planId } = body
+    const { planId } = await request.json()
 
-    // Buscar usuário no banco
-    const user = await prismadb.user.findFirst({
-      where: {
-        clerk_id: userId,
-      },
+    if (!planId) {
+      return NextResponse.json({ error: "ID do plano é obrigatório" }, { status: 400 })
+    }
+
+    // Buscar o usuário no banco de dados
+    const user = await prismadb.user.findUnique({
+      where: { clerk_id: userId },
     })
 
     if (!user) {
       return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 })
     }
 
-    // Buscar plano no banco de dados
+    // Buscar o plano
     const plan = await prismadb.subscriptionPlan.findUnique({
-      where: {
-        id: planId,
-      },
+      where: { id: planId },
     })
 
     if (!plan) {
       return NextResponse.json({ error: "Plano não encontrado" }, { status: 404 })
     }
 
-    // Criar checkout session
+    // Verificar se o usuário já tem um customer no Stripe
+    let stripeCustomerId: string | undefined
+
+    // Buscar customer existente pelo email
+    const existingCustomers = await stripe.customers.list({
+      email: user.email,
+      limit: 1,
+    })
+
+    if (existingCustomers.data.length > 0) {
+      stripeCustomerId = existingCustomers.data[0].id
+    } else {
+      // Criar novo customer
+      const customer = await stripe.customers.create({
+        email: user.email,
+        name: user.name,
+        metadata: {
+          userId: user.id,
+          clerkId: userId,
+        },
+      })
+      stripeCustomerId = customer.id
+    }
+
+    // Cancelar assinatura ativa anterior se existir
+    const activeSubscription = await prismadb.subscription.findFirst({
+      where: {
+        user_id: user.id,
+        status: "ACTIVE",
+      },
+    })
+
+    if (activeSubscription) {
+      await prismadb.subscription.update({
+        where: { id: activeSubscription.id },
+        data: { status: "CANCELED" },
+      })
+    }
+
+    // Criar sessão de checkout para subscription
     const session = await stripe.checkout.sessions.create({
+      customer: stripeCustomerId,
+      payment_method_types: ["card"],
+      mode: "subscription",
       line_items: [
         {
           price_data: {
             currency: "brl",
             product_data: {
-              name: `Plano ${plan.name}`,
-              description: plan.max_services_per_month
-                ? `${plan.max_services_per_month} serviços por mês`
-                : "Serviços ilimitados",
+              name: plan.name,
+              description: plan.features.split("\n").slice(0, 3).join(", "),
             },
-            unit_amount: Math.round(plan.price * 100), // Stripe usa centavos
+            unit_amount: Math.round(plan.price * 100), // Converter para centavos
             recurring: {
               interval: "month",
             },
@@ -61,22 +98,21 @@ export async function POST(req: Request) {
           quantity: 1,
         },
       ],
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/plans/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/plans`,
       metadata: {
         userId: user.id,
         planId: plan.id,
+        clerkId: userId,
       },
-      mode: "subscription",
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/plans/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/plans`,
-      payment_method_types: ["card", "boleto"],//"pix","paypal","amazon_pay","bancontact","paynow"],
-      billing_address_collection: "required",
-      customer_email: user.email,
-      locale: "pt-BR",
     })
 
-    return NextResponse.json({ url: session.url })
+    return NextResponse.json({
+      url: session.url,
+      sessionId: session.id,
+    })
   } catch (error) {
-    console.error("Erro ao criar sessão de checkout:", error)
+    console.error("Erro ao criar checkout:", error)
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
   }
 }
